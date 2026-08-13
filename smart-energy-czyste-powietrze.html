@@ -423,6 +423,7 @@
         </label>
       </div>
       <div class="report-opts">
+        <label class="opt-check"><input type="checkbox" id="optShowM2" checked> Pokaż powierzchnię (m²)</label>
         <label class="opt-check"><input type="checkbox" id="optShowCena" checked> Pokaż cenę za m² i limit jednostkowy</label>
         <label class="opt-check"><input type="checkbox" id="optShowNadwyzka" checked> Pokaż nadwyżki ponad limit (do dopłaty)</label>
         <label class="opt-check"><input type="checkbox" id="optShowComments"> Pokaż komentarze do przegród</label>
@@ -960,7 +961,10 @@ function rowsToTermoHtml(opts){
     const cena = m2>0 ? kwota/m2 : 0;
     const over = cat && m2>0 && cena>cat.max100;
     const highlight = over && opts.nadwyzka;
-    let cells = `<td>${cat?cat.name:'—'}</td><td class="num">${fmt(kwota)}</td><td class="num">${m2>0?fmtN(m2):'—'}</td>`;
+    let cells = `<td>${cat?cat.name:'—'}</td><td class="num">${fmt(kwota)}</td>`;
+    if(opts.m2){
+      cells += `<td class="num">${m2>0?fmtN(m2):'—'}</td>`;
+    }
     if(opts.cena){
       cells += `<td class="num">${m2>0?fmtN(cena)+' zł':'—'}</td><td class="num">${cat?fmtN(cat.max100)+' zł':'—'}</td>`;
     }
@@ -968,7 +972,8 @@ function rowsToTermoHtml(opts){
       const nadw = over ? Math.max(kwota-cat.max100*m2,0) : 0;
       cells += `<td class="num">${nadw>0?fmtN(nadw)+' zł':'—'}</td>`;
     }
-    const commentRow = (opts.comments && r.comment) ? `<tr class="rep-comment"><td colspan="${3+(opts.cena?2:0)+(opts.nadwyzka?1:0)}"><em>Komentarz:</em> ${escapeHtml(r.comment)}</td></tr>` : '';
+    const colCount = 2+(opts.m2?1:0)+(opts.cena?2:0)+(opts.nadwyzka?1:0);
+    const commentRow = (opts.comments && r.comment) ? `<tr class="rep-comment"><td colspan="${colCount}"><em>Komentarz:</em> ${escapeHtml(r.comment)}</td></tr>` : '';
     return `<tr class="${highlight?'rep-over':''}">${cells}</tr>${commentRow}`;
   }).join('');
 }
@@ -1014,6 +1019,7 @@ function buildReport(){
     : sugg.key==='none' ? 'dochód przekracza progi programu' : sugg.label;
 
   const repOpts = {
+    m2: document.getElementById('optShowM2').checked,
     cena: document.getElementById('optShowCena').checked,
     nadwyzka: document.getElementById('optShowNadwyzka').checked,
     comments: document.getElementById('optShowComments').checked,
@@ -1021,14 +1027,15 @@ function buildReport(){
 
   const termoRowsHtml = rowsToTermoHtml(repOpts);
   const zrodloRowsHtml = rowsToZrodloHtml(repOpts);
-  const termoColCount = 3 + (repOpts.cena?2:0) + (repOpts.nadwyzka?1:0);
+  const termoColCount = 2 + (repOpts.m2?1:0) + (repOpts.cena?2:0) + (repOpts.nadwyzka?1:0);
   const zrodloColCount = 3 + (repOpts.nadwyzka?1:0);
 
   const termoTable = termoRowsHtml ? `
     <h3 class="section">Termomodernizacja</h3>
     <table>
       <thead><tr>
-        <th>Rodzaj prac</th><th class="num">Kwota netto</th><th class="num">M²</th>
+        <th>Rodzaj prac</th><th class="num">Kwota netto</th>
+        ${repOpts.m2? '<th class="num">M²</th>' : ''}
         ${repOpts.cena? '<th class="num">Cena/m²</th><th class="num">Max/m²</th>' : ''}
         ${repOpts.nadwyzka? '<th class="num">Do dopłaty ponad limit</th>' : ''}
       </tr></thead>
@@ -1076,11 +1083,6 @@ function buildReport(){
       ${zrodloTable}
       <h3 class="section">Dofinansowanie — 3 warianty</h3>
       <div class="report-results3">${resultsHtml}</div>
-      <div class="rep-foot">
-        Kalkulacja poglądowa na podstawie danych wprowadzonych przez doradcę oraz stawek programu „Czyste Powietrze”
-        (aktualnych na dzień generowania raportu). Ostateczna kwota dofinansowania zależy od decyzji WFOŚiGW / gminy
-        rozpatrującej wniosek. Kwoty netto — do wskazanych sum należy doliczyć VAT wg obowiązującej stawki.
-      </div>
     </div>
   `;
 }
