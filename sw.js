@@ -1,4 +1,4 @@
-const CACHE_NAME = 'seczp-cache-v1';
+const CACHE_NAME = 'seczp-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -23,22 +23,22 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Network-first: zawsze próbuje pobrać najnowszą wersję, gdy jest internet.
+// Pamięć podręczna służy tylko jako zapasowa wersja offline.
 self.addEventListener('fetch', (event) => {
-  // Never cache calls to the Google Apps Script backend — always go to network
+  // Nigdy nie cachuj wywołań do Google Apps Script — zawsze do sieci
   if (event.request.url.includes('script.google.com')) return;
+  if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (event.request.method === 'GET' && networkResponse && networkResponse.status === 200) {
-            const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return networkResponse;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
