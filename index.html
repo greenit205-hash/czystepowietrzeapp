@@ -8,8 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#12151a">
-<script src="https://unpkg.com/pizzip@3.1.6/dist/pizzip.js"></script>
-<script src="https://unpkg.com/docxtemplater@3.47.1/js/docxtemplater.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.66.4/docxtemplater.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -1509,11 +1508,53 @@ function collectContractTable(){
   return groups;
 }
 
+/* --- Ładowanie bibliotek na żądanie (z alternatywnymi źródłami) --- */
+function loadScriptOnce(url){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = url;
+    s.async = true;
+    s.onload = ()=> resolve(url);
+    s.onerror = ()=> { s.remove(); reject(new Error('nie udało się pobrać: '+url)); };
+    document.head.appendChild(s);
+  });
+}
+async function loadFirstAvailable(urls){
+  let lastErr = null;
+  for(const u of urls){
+    try{ await loadScriptOnce(u); return u; }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error('brak dostępnych źródeł');
+}
+async function ensureDocxLibs(statusEl){
+  if(typeof PizZip !== 'undefined' && typeof window.docxtemplater !== 'undefined') return true;
+  if(statusEl){ statusEl.textContent = 'Pobieram biblioteki do generowania dokumentu…'; statusEl.style.color = 'var(--muted-2)'; }
+  if(typeof PizZip === 'undefined'){
+    await loadFirstAvailable([
+      'https://cdn.jsdelivr.net/npm/pizzip@3.1.6/dist/pizzip.js',
+      'https://unpkg.com/pizzip@3.1.6/dist/pizzip.js',
+      'https://cdn.jsdelivr.net/npm/pizzip@3.2.0/dist/pizzip.js',
+    ]);
+  }
+  if(typeof window.docxtemplater === 'undefined'){
+    await loadFirstAvailable([
+      'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.66.4/docxtemplater.js',
+      'https://cdn.jsdelivr.net/npm/docxtemplater@3.47.1/build/docxtemplater.js',
+      'https://unpkg.com/docxtemplater@3.47.1/build/docxtemplater.js',
+    ]);
+  }
+  return (typeof PizZip !== 'undefined' && typeof window.docxtemplater !== 'undefined');
+}
+
 /* --- Generowanie dokumentu --- */
 async function generateUmowaDocx(){
   const status = document.getElementById('umowaStatus');
-  if(typeof PizZip === 'undefined' || typeof window.docxtemplater === 'undefined'){
-    status.textContent = 'Nie udało się załadować biblioteki do generowania .docx (sprawdź połączenie z internetem) — spróbuj też na wdrożonej wersji (GitHub Pages).';
+  try{
+    const ok = await ensureDocxLibs(status);
+    if(!ok) throw new Error('biblioteki nie zostały poprawnie wczytane');
+  }catch(e){
+    console.error(e);
+    status.textContent = 'Nie udało się pobrać bibliotek do generowania .docx (' + (e.message||e) + '). Sprawdź połączenie z internetem i spróbuj ponownie.';
     status.style.color = 'var(--danger)';
     return;
   }

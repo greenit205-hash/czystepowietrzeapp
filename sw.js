@@ -1,4 +1,4 @@
-const CACHE_NAME = 'seczp-cache-v2';
+const CACHE_NAME = 'seczp-cache-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -29,6 +29,10 @@ self.addEventListener('fetch', (event) => {
   // Nigdy nie cachuj wywołań do Google Apps Script — zawsze do sieci
   if (event.request.url.includes('script.google.com')) return;
   if (event.request.method !== 'GET') return;
+
+  // Biblioteki z zewnętrznych CDN obsługuje przeglądarka bezpośrednio
+  const url = event.request.url;
+  if (url.includes('cdnjs.cloudflare.com') || url.includes('cdn.jsdelivr.net') || url.includes('unpkg.com')) return;
 
   event.respondWith(
     fetch(event.request)
