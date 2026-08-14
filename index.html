@@ -445,7 +445,7 @@
       <div class="contract-grid">
         <label>Numer umowy
           <div class="numer-row">
-            <input type="text" id="cNumer" readonly placeholder="brak — kliknij Nadaj numer">
+            <input type="text" id="cNumer" placeholder="np. 1/08/2026">
             <button class="btn-ghost btn-sm" id="btnNadajNumer">Nadaj numer</button>
           </div>
         </label>
@@ -1099,6 +1099,8 @@ document.getElementById('btnNew').addEventListener('click', ()=>{
   document.getElementById('cData').value = new Date().toISOString().slice(0,10);
   updateMontazUI(); updateKorespUI(); updateTermin();
   document.getElementById('umowaStatus').textContent = '';
+  delete document.getElementById('cNumer').dataset.reczny;
+  ustawProponowanyNumer();
   addTermoRow(); addZrodloRow();
 });
 
@@ -1152,6 +1154,8 @@ async function renderSavedList(){
         document.getElementById('incMiesieczny').value = rec.incMiesieczny || '';
         const ct = rec.contract || {};
         document.getElementById('cNumer').value = ct.numer || '';
+        if(ct.numer) document.getElementById('cNumer').dataset.reczny = '1';
+        else delete document.getElementById('cNumer').dataset.reczny;
         document.getElementById('cData').value = ct.data || new Date().toISOString().slice(0,10);
         document.getElementById('cMiejsce').value = ct.miejsce || '';
         document.getElementById('cPanPani').value = ct.panPani || '';
@@ -1651,27 +1655,52 @@ function updateTermin(){
   d.setMonth(d.getMonth()+16);
   document.getElementById('cTermin').value = fmtDatePL(d);
 }
-document.getElementById('cData').addEventListener('change', updateTermin);
+document.getElementById('cData').addEventListener('change', async ()=>{
+  updateTermin();
+  // jeśli numer nie był ręcznie zmieniany, dopasuj go do miesiąca z daty umowy
+  const pole = document.getElementById('cNumer');
+  if(!pole.dataset.reczny){ pole.value = await proponujNumerUmowy(); }
+});
+document.getElementById('cNumer').addEventListener('input', e=>{
+  e.target.dataset.reczny = '1';
+});
 
-/* --- Numer umowy: N/MM/RRRR, licznik resetowany co miesiąc --- */
-async function nadajNumerUmowy(){
-  const now = new Date();
-  const mm = String(now.getMonth()+1).padStart(2,'0');
-  const yyyy = now.getFullYear();
-  const key = `${yyyy}-${mm}`;
+/* --- Numer umowy: N/MM/RRRR, licznik resetowany co miesiąc ---
+   Numer proponowany jest automatycznie, ale pole można dowolnie edytować.
+   Licznik zapisuje się dopiero przy generowaniu umowy. --- */
+function biezacyKluczNumeracji(){
+  const dataStr = document.getElementById('cData').value;
+  const d = dataStr ? new Date(dataStr+'T00:00:00') : new Date();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return {mm, yyyy: d.getFullYear(), key: `${d.getFullYear()}-${mm}`};
+}
+async function proponujNumerUmowy(){
+  const {mm, yyyy, key} = biezacyKluczNumeracji();
   const counters = (await storageGet('umowa-numeracja')) || {};
   const next = (counters[key]||0) + 1;
-  counters[key] = next;
-  await storageSet('umowa-numeracja', counters);
-  const numer = `${next}/${mm}/${yyyy}`;
-  document.getElementById('cNumer').value = numer;
-  return numer;
+  return `${next}/${mm}/${yyyy}`;
+}
+async function ustawProponowanyNumer(){
+  document.getElementById('cNumer').value = await proponujNumerUmowy();
+}
+/* zapisuje licznik na podstawie numeru faktycznie użytego w umowie */
+async function zapiszNumerUmowy(numer){
+  const m = String(numer||'').match(/^\s*(\d+)\s*\/\s*(\d{1,2})\s*\/\s*(\d{4})\s*$/);
+  if(!m) return;
+  const n = parseInt(m[1],10);
+  const key = `${m[3]}-${String(parseInt(m[2],10)).padStart(2,'0')}`;
+  const counters = (await storageGet('umowa-numeracja')) || {};
+  if(!counters[key] || n > counters[key]){
+    counters[key] = n;
+    await storageSet('umowa-numeracja', counters);
+  }
 }
 document.getElementById('btnNadajNumer').addEventListener('click', async ()=>{
-  if(document.getElementById('cNumer').value){
-    if(!confirm('Numer umowy jest już nadany. Nadać nowy (poprzedni przepadnie)?')) return;
+  if(document.getElementById('cNumer').value.trim()){
+    if(!confirm('Zastąpić obecny numer kolejnym wolnym numerem?')) return;
   }
-  await nadajNumerUmowy();
+  await ustawProponowanyNumer();
+  delete document.getElementById('cNumer').dataset.reczny;
 });
 
 /* --- Zbieranie danych do tabeli umowy wg contractRow --- */
@@ -1710,8 +1739,12 @@ function collectContractTable(){
 /* --- Generowanie dokumentu (bez zewnętrznych bibliotek, działa offline) --- */
 async function generateUmowaDocx(){
   const status = document.getElementById('umowaStatus');
-  let numer = document.getElementById('cNumer').value;
-  if(!numer){ numer = await nadajNumerUmowy(); }
+  let numer = document.getElementById('cNumer').value.trim();
+  if(!numer){
+    numer = await proponujNumerUmowy();
+    document.getElementById('cNumer').value = numer;
+  }
+  await zapiszNumerUmowy(numer);
 
   const dataStr = document.getElementById('cData').value;
   const dataZawarcia = dataStr ? fmtDatePL(new Date(dataStr+'T00:00:00')) : '';
@@ -1801,6 +1834,7 @@ async function init(){
   updateKorespUI();
   document.getElementById('cData').value = new Date().toISOString().slice(0,10);
   updateTermin();
+  await ustawProponowanyNumer();
   addTermoRow(); addTermoRow(); addTermoRow();
   addZrodloRow();
   renderTermo(); renderZrodlo(); compute();
