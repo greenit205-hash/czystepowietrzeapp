@@ -121,7 +121,9 @@
   .rate.bad{color:var(--danger);font-weight:600;}
   .rmv{background:none;border:none;color:var(--muted-2);font-size:15px;padding:2px 6px;}
   .rmv:hover{color:var(--danger);}
-  .rowactions{display:flex;gap:2px;justify-content:flex-end;white-space:nowrap;}
+  .rowactions{display:flex;gap:4px;align-items:center;justify-content:flex-end;white-space:nowrap;}
+  .in-umowa{display:flex;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);cursor:pointer;user-select:none;}
+  .in-umowa input{accent-color:var(--gold);width:13px;height:13px;cursor:pointer;}
   .rowactions [data-role="comment"]{font-size:13px;}
   .rowactions [data-role="comment"]:hover{color:var(--gold-soft);}
   .rowactions [data-role="comment"].has-comment{color:var(--gold-soft);}
@@ -715,6 +717,9 @@ function renderTermo(){
       <td class="num rate">${cat? fmtN(cat.max100)+' zł':'—'}</td>
       <td class="num rate ${over?'bad':''}" data-role="nadwyzka">${over? fmtN(Math.max(kwota-cat.max100*m2,0))+' zł':'—'}</td>
       <td class="rowactions">
+        <label class="in-umowa" title="Uwzględnij tę pozycję w generowanej umowie">
+          <input type="checkbox" data-role="inumowa" ${r.inUmowie!==false?'checked':''}> um.
+        </label>
         <button class="rmv ${r.comment?'has-comment':''}" data-role="comment" title="Opis / komentarz do przegrody">💬</button>
         <button class="rmv" data-role="rm" title="Usuń pozycję">×</button>
       </td>
@@ -747,6 +752,7 @@ function renderTermo(){
       if(openComments.has(id)) openComments.delete(id); else openComments.add(id);
       renderTermo();
     });
+    tr.querySelector('[data-role="inumowa"]')?.addEventListener('change', e=>{ row.inUmowie = e.target.checked; });
   });
   tb.querySelectorAll('textarea[data-role="commenttext"]').forEach(ta=>{
     const parentId = ta.closest('tr').getAttribute('data-comment-for');
@@ -803,6 +809,9 @@ function renderZrodlo(){
       <td class="num rate ${over?'bad':''}">${cat? fmtN(cat.max100)+' zł':'—'}</td>
       <td class="num rate ${over?'bad':''}" data-role="nadwyzka">${over? fmtN(kwota-cat.max100)+' zł':'—'}</td>
       <td class="rowactions">
+        <label class="in-umowa" title="Uwzględnij tę pozycję w generowanej umowie">
+          <input type="checkbox" data-role="inumowa" ${r.inUmowie!==false?'checked':''}> um.
+        </label>
         <button class="rmv ${r.comment?'has-comment':''}" data-role="comment" title="Opis / komentarz do umowy">💬</button>
         <button class="rmv" data-role="rm" title="Usuń pozycję">×</button>
       </td>
@@ -824,6 +833,7 @@ function renderZrodlo(){
       if(openComments.has(id)) openComments.delete(id); else openComments.add(id);
       renderZrodlo();
     });
+    tr.querySelector('[data-role="inumowa"]')?.addEventListener('change', e=>{ row.inUmowie = e.target.checked; });
   });
   tb.querySelectorAll('textarea[data-role="commenttext"]').forEach(ta=>{
     const parentId = ta.closest('tr').getAttribute('data-comment-for');
@@ -1475,6 +1485,7 @@ function collectContractTable(){
   const vatMult = 1 + ((parseFloat(cfg.vat)||0)/100);
   const addLine = (arr, text) => { if(text && !arr.includes(text)) arr.push(text); };
   rowsTermo.forEach(r=>{
+    if(r.inUmowie===false) return;
     const cat = cfg.termo.find(c=>c.id===r.catId);
     const key = cat && cat.contractRow;
     if(!key || !groups[key]) return;
@@ -1486,6 +1497,7 @@ function collectContractTable(){
     if(kwota>0 || m2>0) addLine(groups[key].names, r.comment ? r.comment : cat.name);
   });
   rowsZrodlo.forEach(r=>{
+    if(r.inUmowie===false) return;
     const cat = cfg.zrodlo.find(c=>c.id===r.catId);
     const key = cat && cat.contractRow;
     if(!key || !groups[key]) return;
@@ -1537,12 +1549,12 @@ async function generateUmowaDocx(){
     adres_montazu: adresMontazu,
     zrodlo_opis: opis('zrodlo'), zrodlo_brutto: g('zrodlo','brutto'), zrodlo_netto: g('zrodlo','netto'),
     instalacja_opis: opis('instalacja'), instalacja_brutto: g('instalacja','brutto'), instalacja_netto: g('instalacja','netto'),
-    dach_m2: g('dach','m2'), dach_brutto: g('dach','brutto'), dach_netto: g('dach','netto'),
-    sciany_m2: g('sciany','m2'), sciany_brutto: g('sciany','brutto'), sciany_netto: g('sciany','netto'),
-    podloga_m2: g('podloga','m2'), podloga_brutto: g('podloga','brutto'), podloga_netto: g('podloga','netto'),
-    okna_m2: g('okna','m2'), okna_brutto: g('okna','brutto'), okna_netto: g('okna','netto'),
-    drzwi_m2: g('drzwi','m2'), drzwi_brutto: g('drzwi','brutto'), drzwi_netto: g('drzwi','netto'),
-    brama_m2: g('brama','m2'), brama_brutto: g('brama','brutto'), brama_netto: g('brama','netto'),
+    dach_m2: g('dach','m2'), dach_brutto: g('dach','brutto'), dach_netto: g('dach','netto'), dach_opis: opis('dach'),
+    sciany_m2: g('sciany','m2'), sciany_brutto: g('sciany','brutto'), sciany_netto: g('sciany','netto'), sciany_opis: opis('sciany'),
+    podloga_m2: g('podloga','m2'), podloga_brutto: g('podloga','brutto'), podloga_netto: g('podloga','netto'), podloga_opis: opis('podloga'),
+    okna_m2: g('okna','m2'), okna_brutto: g('okna','brutto'), okna_netto: g('okna','netto'), okna_opis: opis('okna'),
+    drzwi_m2: g('drzwi','m2'), drzwi_brutto: g('drzwi','brutto'), drzwi_netto: g('drzwi','netto'), drzwi_opis: opis('drzwi'),
+    brama_m2: g('brama','m2'), brama_brutto: g('brama','brutto'), brama_netto: g('brama','netto'), brama_opis: opis('brama'),
     kwota_brutto: fmtPLN(sumBrutto), kwota_brutto_slownie: kwotaSlownie(sumBrutto),
     kwota_netto: fmtPLN(sumNetto), kwota_netto_slownie: kwotaSlownie(sumNetto),
     termin_realizacji: document.getElementById('cTermin').value,
@@ -1556,6 +1568,7 @@ async function generateUmowaDocx(){
     status.textContent = 'Generuję dokument…';
     status.style.color = 'var(--muted-2)';
     const zip = new PizZip(UMOWA_TEMPLATE_B64, {base64:true});
+    Object.keys(data).forEach(k=>{ if(data[k]===undefined || data[k]===null) data[k]=''; });
     const doc = new window.docxtemplater(zip, {paragraphLoop:true, linebreaks:true, nullGetter:()=>''});
     doc.render(data);
     const out = doc.getZip().generate({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
