@@ -392,7 +392,7 @@
       <button class="addrow btn-ghost btn-sm" id="addZrodlo">+ dodaj pozycję</button>
       <div class="subtot"><span>Suma kosztów netto (źródło ciepła)</span><b id="sumZrodlo">0 zł</b></div>
       <div class="gauge-wrap">
-        <div class="gauge-label">Wykorzystanie limitu puli <span class="lim" id="limZrodloLabel">0 / 0 zł</span></div>
+        <div class="gauge-label">Wykorzystanie limitów urządzeń (suma limitów wpisanych pozycji) <span class="lim" id="limZrodloLabel">0 / 0 zł</span></div>
         <div class="gauge"><div class="gauge-fill" id="gaugeZrodlo"></div><div class="gauge-overflow" id="gaugeZrodloOver" style="display:none"></div></div>
       </div>
     </div>
@@ -519,7 +519,6 @@
     <div class="toprow">
       <label>VAT (%)<input type="number" id="cfgVat" step="0.5"></label>
       <label>Limit puli — Termomodernizacja przy 100% (zł)<input type="number" id="cfgLimTermo" step="100"></label>
-      <label>Limit puli — Źródło ciepła przy 100% (zł)<input type="number" id="cfgLimZrodlo" step="100"></label>
     </div>
 
     <div class="sectiontitle">Progi dochodowe (kwalifikacja klienta)</div>
@@ -972,6 +971,15 @@ function updateGauge(prefix, sumQualified, limit100){
   label.textContent = fmtN(sumQualified)+' / '+fmtN(limit100)+' zł';
 }
 
+/* limit puli 2 = suma limitów urządzeń faktycznie wpisanych w kalkulacji */
+function limitZrodlaZPozycji(){
+  let suma = 0;
+  rowsZrodlo.forEach(r=>{
+    const cat = cfg.zrodlo.find(c=>c.id===r.catId);
+    if(cat && (parseFloat(r.kwota)||0) > 0) suma += (parseFloat(cat.max100)||0);
+  });
+  return suma;
+}
 function compute(){
   const vat = (parseFloat(cfg.vat)||0)/100;
   const termo = poolTotals(rowsTermo, cfg.termo, true);
@@ -981,14 +989,14 @@ function compute(){
   document.getElementById('sumZrodlo').textContent = fmt(zrodlo.sumActual);
 
   updateGauge('Termo', termo.sumQualified, cfg.limTermo100);
-  updateGauge('Zrodlo', zrodlo.sumQualified, cfg.limZrodlo100);
+  updateGauge('Zrodlo', zrodlo.sumQualified, limitZrodlaZPozycji());
 
   const results = document.getElementById('results');
   const sugg = getIncomeSuggestion();
   renderIncomeResult(sugg);
   const data = LEVELS.map(lv=>{
     const dTermo = Math.min(termo.sumQualified, cfg.limTermo100) * lv.pct;
-    const dZrodlo = Math.min(zrodlo.sumQualified, cfg.limZrodlo100) * lv.pct;
+    const dZrodlo = zrodlo.sumQualified * lv.pct;   // limity są per urządzenie, nie na całą pulę
     const dotacja = dTermo + dZrodlo;
     const kosztCalkowity = termo.sumActual + zrodlo.sumActual;
     const wkladWlasny = Math.max(kosztCalkowity - dotacja, 0);
@@ -1067,7 +1075,6 @@ function renderCfgLists(){
   document.getElementById('cfgSyncUrl').value = getSyncUrl();
   document.getElementById('cfgVat').value = cfg.vat;
   document.getElementById('cfgLimTermo').value = cfg.limTermo100;
-  document.getElementById('cfgLimZrodlo').value = cfg.limZrodlo100;
   document.getElementById('cfgIncRoczny').value = cfg.incomeThresholds.podstawowyRoczny;
   document.getElementById('cfgIncPodwMulti').value = cfg.incomeThresholds.podwyzszonyMulti;
   document.getElementById('cfgIncPodwSingle').value = cfg.incomeThresholds.podwyzszonySingle;
@@ -1125,7 +1132,6 @@ document.getElementById('cfgClose').addEventListener('click', async ()=>{
   setSyncUrl(document.getElementById('cfgSyncUrl').value.trim());
   cfg.vat = parseFloat(document.getElementById('cfgVat').value)||0;
   cfg.limTermo100 = parseFloat(document.getElementById('cfgLimTermo').value)||0;
-  cfg.limZrodlo100 = parseFloat(document.getElementById('cfgLimZrodlo').value)||0;
   cfg.incomeThresholds.podstawowyRoczny = parseFloat(document.getElementById('cfgIncRoczny').value)||0;
   cfg.incomeThresholds.podwyzszonyMulti = parseFloat(document.getElementById('cfgIncPodwMulti').value)||0;
   cfg.incomeThresholds.podwyzszonySingle = parseFloat(document.getElementById('cfgIncPodwSingle').value)||0;
