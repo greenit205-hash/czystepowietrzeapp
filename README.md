@@ -1,70 +1,47 @@
-# Smart Energy — Kalkulator Czyste Powietrze — wdrożenie
+# Smart Energy — Kalkulator Czyste Powietrze
 
-Pliki w repozytorium:
-- `index.html` — aplikacja (jeden plik)
-- `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png` — obsługa PWA (instalacja na telefonie/tablecie jak aplikacja)
-- `Code.gs` — backend Google Apps Script (magazyn danych: cennik + zapisane kalkulacje klientów)
-- `.gitignore`
+Aplikacja do liczenia dofinansowania z programu „Czyste Powietrze" i generowania umowy z wykonawcą.
 
-`Code.gs` nie jest potrzebny do samego hostingu (to osobny kod wklejany do Google Apps Script) — zostaje w repo jako kopia/dokumentacja.
+- liczy dofinansowanie w trzech wariantach (40% / 70% / 100%) z limitami jednostkowymi i limitem puli termomodernizacji,
+- podpowiada poziom dofinansowania na podstawie dochodu i typu gospodarstwa,
+- generuje raport PDF dla klienta w trzech wariantach marki (Smart Energy / DomStyl / kalkulacja audytora),
+- generuje gotową umowę `.docx` dla trzech wykonawców (DomStyl, Janusz Czapla, TRIM-BUD),
+- synchronizuje kalkulacje między urządzeniami przez Dysk Google,
+- działa offline i instaluje się jak aplikacja (PWA).
 
-## 1. GitHub
+## Pliki
 
-```bash
-cd smart-energy-czyste-powietrze
-git init
-git add .
-git commit -m "Kalkulator Czyste Powietrze — wersja startowa"
-git branch -M main
-git remote add origin https://github.com/<twoj-uzytkownik>/<nazwa-repo>.git
-git push -u origin main
-```
+| Plik | Do czego |
+|---|---|
+| `index.html` | cała aplikacja (jeden plik, z wbudowanymi szablonami umów) |
+| `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png` | obsługa PWA — instalacja na telefonie/tablecie, praca offline |
+| `Kod.gs` | skrypt Google Apps Script do synchronizacji z Dyskiem Google |
+| `INSTRUKCJA-SYNCHRONIZACJA.md` | jak wdrożyć skrypt i włączyć synchronizację |
 
-(Możesz też po prostu utworzyć puste repozytorium na github.com i przeciągnąć pliki przez „Add file → Upload files” w przeglądarce — bez terminala).
+## Hosting (GitHub Pages)
 
-## 2. GitHub Pages — hosting
+**Settings → Pages → Source: Deploy from a branch → Branch: `main`, folder `/ (root)`.**
+Strona działa pod `https://greenit205-hash.github.io/czystepowietrzeapp/` i odświeża się po każdym pushu do `main` (zwykle do minuty).
 
-1. W repozytorium na GitHubie: **Settings → Pages**.
-2. Sekcja „Build and deployment” → **Source: Deploy from a branch**.
-3. **Branch: main**, folder: **/ (root)** → **Save**.
-4. Po ok. 1 minucie strona będzie dostępna pod adresem:
-   `https://<twoj-uzytkownik>.github.io/<nazwa-repo>/`
-5. Każdy kolejny `git push` do `main` automatycznie aktualizuje stronę (deploy trwa zwykle do minuty).
+Wszystkie ścieżki w plikach są względne, więc aplikacja działa poprawnie także pod podadresem repozytorium.
 
-Ponieważ wszystkie ścieżki w `index.html` / `manifest.json` / `sw.js` są względne, strona działa poprawnie także pod podadresem (`/<nazwa-repo>/`), nie tylko pod domeną główną — nic nie trzeba w nich zmieniać.
+## Synchronizacja między urządzeniami
 
-## 3. Backend — Google Apps Script (Google Sheets)
+Kalkulacje, cennik i numeracja umów zapisują się w folderze **„Czyste Powietrze"** na Twoim Dysku Google — pełna instrukcja w [INSTRUKCJA-SYNCHRONIZACJA.md](INSTRUKCJA-SYNCHRONIZACJA.md).
 
-1. Utwórz nowy, pusty arkusz Google Sheets — np. „SE Czyste Powietrze — dane”.
-2. **Rozszerzenia → Apps Script**.
-3. Usuń domyślną zawartość `Code.gs`, wklej całą zawartość pliku `Code.gs` z repozytorium. Zapisz (Ctrl+S).
-4. **Wdróż → Nowe wdrożenie**:
-   - Typ: **Aplikacja internetowa**
-   - Wykonaj jako: **Ja**
-   - Dostęp: **Każdy** (to konieczne, żeby aplikacja hostowana na GitHub Pages mogła się łączyć)
-5. Zatwierdź uprawnienia (Google poprosi o zgodę przy pierwszym wdrożeniu).
-6. Skopiuj **adres URL Web App** (kończy się na `/exec`) — to Twój adres synchronizacji.
+## Instalacja na telefonie/tablecie
 
-Jeśli w przyszłości zmienisz `Code.gs`, pamiętaj: **Zarządzaj wdrożeniami → Edytuj → Nowa wersja**, inaczej zmiany się nie pojawią.
+- Android/Chrome: menu (⋮) → **Dodaj do ekranu głównego**
+- iPhone/Safari: **Udostępnij** → **Dodaj do ekranu początkowego**
 
-## 4. Połączenie apki z arkuszem
+Po aktualizacji aplikacji na GitHubie zamknij ją całkowicie na urządzeniu i otwórz ponownie z internetem — pobierze nową wersję.
 
-1. Otwórz stronę pod adresem z kroku 2 (`https://<twoj-uzytkownik>.github.io/<nazwa-repo>/`).
-2. Kliknij **⚙ Cennik**.
-3. W sekcji „Synchronizacja z Google Sheets” wklej adres Web App (`.../exec`) z kroku 3.
-4. Kliknij **Gotowe** — od teraz cennik i zapisane kalkulacje klientów są automatycznie wysyłane do arkusza.
-5. Na kolejnym urządzeniu (telefon, tablet) wejdź na ten sam adres GitHub Pages, wklej ten sam URL synchronizacji i kliknij **Synchronizuj teraz** — pobierze dane z arkusza.
+## Raport PDF
 
-## 5. Instalacja jak aplikacja na telefonie/tablecie
+W kroku „Raport dla klienta": wybierz markę, zaznacz, co ma być widoczne (m², cena/m², nadwyżki ponad limit, komentarze do przegród) i kliknij **Generuj raport**. Otworzy się okno drukowania — w polu „Miejsce docelowe" wybierz **Zapisz jako PDF**.
 
-- Android/Chrome: menu (⋮) → **Dodaj do ekranu głównego**.
-- iPhone/Safari: przycisk „Udostępnij” → **Dodaj do ekranu początkowego**.
+## Umowa
 
-Aplikacja działa też offline (dzięki `sw.js`) — dane wpisane bez internetu zapisują się lokalnie i wyślą się do arkusza, gdy połączenie wróci (przy kolejnym zapisie/synchronizacji).
+W kroku „Umowa z klientem": wybierz wykonawcę, uzupełnij dane i kliknij **Generuj umowę (.docx)**. Dokument powstaje w całości w przeglądarce, bez zewnętrznych bibliotek — działa też offline.
 
-## 6. Raport PDF
-
-W apce, w kroku „Raport dla klienta”:
-- wybierz markę (Smart Energy / DomStyl) — zmienia kolorystykę i logo raportu,
-- zaznacz, jakie informacje mają się znaleźć w PDF (cena/m², nadwyżki ponad limit, komentarze do przegród),
-- kliknij **Generuj raport / Zapisz jako PDF** — otworzy się okno drukowania przeglądarki, z którego wybierasz „Zapisz jako PDF”.
+Szablony umów są zgodne ze wzorem WFOŚiGW obowiązującym od 20.07.2026 r. (wersja z logo „Dofinansowane przez Unię Europejską — System handlu emisjami / Fundusz Modernizacyjny").
